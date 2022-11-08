@@ -183,7 +183,7 @@ python installed, if they don't need python bindings.
       <resource>
         <directory>python_scripts/libs</directory>
         <includes>
-          <include>*.py</include>
+          <include>*</include>
         </includes>
         <targetPath>${project.build.directory}/generated-sources/python/${python_package}</targetPath>
         <filtering>true</filtering>
@@ -191,7 +191,7 @@ python installed, if they don't need python bindings.
 	  <resource>
         <directory>python_scripts/libs/tests</directory>
         <includes>
-          <include>*.py</include>
+          <include>*</include>
         </includes>
         <targetPath>${project.build.directory}/generated-sources/python/${python_package}</targetPath>
         <filtering>true</filtering>
@@ -199,7 +199,7 @@ python installed, if they don't need python bindings.
 	  <resource>
         <directory>python_scripts/jobs</directory>
         <includes>
-          <include>*.py</include>
+          <include>*</include>
         </includes>
         <targetPath>${project.build.directory}/generated-sources/python/${python_package}</targetPath>
         <filtering>true</filtering>
@@ -207,7 +207,7 @@ python installed, if they don't need python bindings.
 	  <resource>
         <directory>python_scripts/jobs/fw_dwnld_mode_2</directory>
         <includes>
-          <include>*.py</include>
+          <include>*</include>
         </includes>
         <targetPath>${project.build.directory}/generated-sources/python/${python_package}</targetPath>
         <filtering>true</filtering>
@@ -215,7 +215,7 @@ python installed, if they don't need python bindings.
 	  <resource>
         <directory>python_scripts/jobs/straggler_automation</directory>
         <includes>
-          <include>*.py</include>
+          <include>*</include>
         </includes>
         <targetPath>${project.build.directory}/generated-sources/python/${python_package}</targetPath>
         <filtering>true</filtering>
@@ -223,7 +223,7 @@ python installed, if they don't need python bindings.
 	  <resource>
         <directory>python_scripts/jobs/terminal_attention_prioritizer</directory>
         <includes>
-          <include>*.py</include>
+          <include>*</include>
         </includes>
         <targetPath>${project.build.directory}/generated-sources/python/${python_package}</targetPath>
         <filtering>true</filtering>
