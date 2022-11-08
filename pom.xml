@@ -10,8 +10,8 @@
     <python_package>sample_pb</python_package>
     <description>Sample protocol buffer bindings for python</description>
     <author>ChetanJadhav</author>
-    <author_email>chetankjadhav@gmail.com</author_email>
-    <source_url>https://github.com/ChetanJadhav31031989/PythonSampleTestCode/</source_url>
+    <author_email>saiteja9872@gmail.com</author_email>
+    <source_url>https://github.com/saiteja9872/infrastructure</source_url>
     <!-- Use a non-existent phase to make sure python tasks only
     run when one of the profiles below is activated. -->
     <python_compile_phase>never</python_compile_phase>
