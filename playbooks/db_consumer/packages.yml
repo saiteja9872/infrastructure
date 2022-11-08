@@ -1,0 +1,57 @@
+- hosts: all 
+  tasks:
+  - name: Add debian repo to sources list.
+    apt_repository: 
+      repo: deb https://artifactory.viasat.com/artifactory/databus-deb xenial main
+      filename: databus
+
+  - name: Add public key.
+    apt_key:
+      url: https://artifactory.viasat.com/artifactory/api/gpg/key/public
+
+  - name: Install packages.
+    apt:
+      name: "{{ packages }}"
+      state: present
+      update-cache: yes
+    vars:
+      packages:
+      - python3-pip
+      - libssl-dev
+      - python-dev
+      - build-essential
+      - cmake
+      - autoconf
+      - automake
+      - libtool
+      - libtool-bin
+      - swig
+      - g++
+      - doxygen
+      - libsasl2-dev
+      - uuid-dev
+      - libjansson-dev
+      - pkgconf
+      - libcurl4-openssl-dev
+      - krb5-user
+      - libgssapi-krb5-2
+      - libsasl2-modules-gssapi-mit
+      - libidb
+      - python3-idb
+      - postgresql
+      - postgresql-server-dev-all
+
+  - name: Download kerberos config.
+    get_url:
+      url: https://api.us-or.viasat.io/api/v1/kerberos/krb5.conf
+      url_username: "{{ lookup('env', 'URL_USER') }}"
+      url_password: "{{ lookup('env', 'URL_PASS') }}"
+      dest: /etc/krb5.conf
+      mode: 0644
+
+  - name: Install psycopg2.
+    pip:
+      name: psycopg2
+      executable: /usr/bin/pip3
+      
+

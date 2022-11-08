@@ -1,0 +1,13 @@
+[Unit]
+Description=Modoc Consumer Service
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /var/tmp/Databus-Consumer/modoc-consumer.py
+Restart=always
+StandardInput=tty-force
+
+[Install]
+WantedBy=multi-user.target

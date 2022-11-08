@@ -1,0 +1,42 @@
+Authorized users only. All activity may be monitored and reported.
+**********************************************************
+.___  ___.   ______    _______   ______   .___________.
+|   \/   |  /  __  \  |       \ /  __  \  |           |
+|  \  /  | |  |  |  | |  .--.  |  |  |  | `---|  |----`
+|  |\/|  | |  |  |  | |  |  |  |  |  |  |     |  |
+|  |  |  | |  `--'  | |  '--'  |  `--'  |     |  |
+|__|  |__|  \______/  |_______/ \______/      |__|
+
+**********************************************************
+Pssst...Some helpful shortcuts:
+
+# Scripts for Residential modem access
+mtool -h  # Interactive tool help menu for residential modems
+ut_ssh <MAC address>
+modem_key_ssh -i <key file path> <user>@<ip>  # if you already know the IP and which key to use
+get_bb <MAC address>
+run_cmd <cmd> <MAC address>
+get_ip <MAC address>
+get_file <remote file> <MAC address>
+put_file <local file> <MAC address>
+modem_key_scp -i <key file path> <src> <dst>  # if you already know the IP and which key to use
+# NOTE: modem keys can be found at /home/sshproxy/.ssh/
+
+# Scripts for M3 modems
+# NOTE: Any modems on older software (Serengeti), are running ut_mac in a docker container.
+# Any commands on these modems that are required to be run in the docker container (such as utstat)
+# will need the user to prepend 'docker exec sb2Waveform'
+m3tool -h  # Interactive tool help menu for mobile modems
+m3_ssh <MAC address>
+modem_key_ssh -i <key file path> <user>@<ip>  # if you already know the IP and which key to use
+m3_get_bb <MAC address>
+m3_run_cmd <command> <MAC address>
+m3_get_ip <MAC address>
+m3_get_file <remote file> <MAC address>
+m3_put_file <local file> <MAC address>
+modem_key_scp -i <key file path> <src> <dst>  # if you already know the IP and which key to use
+# NOTE: modem keys can be found at /home/sshproxy/.ssh/
+
+# Documentation
+https://wiki.viasat.com/display/LEAP/Modem+Tool+Script
+https://wiki.viasat.com/pages/viewpage.action?pageId=671264260  # for modem_key_ssh and modem_key_scp

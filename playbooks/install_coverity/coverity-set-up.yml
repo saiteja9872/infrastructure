@@ -1,0 +1,61 @@
+- hosts: all
+  vars:
+    install_script_loc: /var/tmp/coverity/cov-analysis-installer.sh
+    license_loc: /var/tmp/coverity/license.dat
+  tasks:
+    - name: Install required packages.
+      package:
+        state: present
+        name: "{{ item }}"
+      with_items:
+        - telnet
+        - ttf-dejavu
+
+    - name: Install Python packages needed by Ansible.
+      pip:
+        name: 
+          - boto
+          - boto3
+          - botocore
+        executable: pip2.7
+
+    - name: Create Coverity Directory.
+      file:
+        path: /var/tmp/coverity
+        state: directory
+        owner: ut-devops-preprod_cicd
+        group: ut-devops-preprod_vs2_jumpbox_admins
+        mode: '775'
+    
+    - name: Get installer script from S3.
+      aws_s3:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID_PREPROD }}"
+        aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY_PREPROD }}"
+        bucket: "{{ S3_BUCKET_NAME }}"
+        object: "{{ INSTALLER_SCRIPT }}"
+        dest: "{{ install_script_loc }}"
+        mode: get
+
+    - name: Get license from S3.
+      aws_s3:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID_PREPROD }}"
+        aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY_PREPROD }}"
+        bucket: "{{ S3_BUCKET_NAME }}"
+        object: "{{ LICENSE_FILE }}"
+        dest: "{{ license_loc }}"
+        mode: get
+
+    - name: Give correct permissions to script.
+      file:
+        path: "{{ install_script_loc }}"
+        owner: ut-devops-preprod_cicd
+        group: ut-devops-preprod_vs2_jumpbox_admins
+        mode: '775'
+
+    - name: Give correct permissions to license.
+      file:
+        path: "{{ license_loc }}"
+        owner: ut-devops-preprod_cicd
+        group: ut-devops-preprod_vs2_jumpbox_admins
+        mode: '660'
+

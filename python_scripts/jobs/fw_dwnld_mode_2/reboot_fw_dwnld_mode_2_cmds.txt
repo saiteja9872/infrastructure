@@ -1,0 +1,2 @@
+version
+fw_printenv current_sw_image

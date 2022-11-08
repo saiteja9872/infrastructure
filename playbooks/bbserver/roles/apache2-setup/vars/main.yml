@@ -1,0 +1,6 @@
+---
+ec2_ssl_priv_key: bbserver-viasat-io-key.pem
+ec2_ssl_cert: bbserver-viasat-io-elb-cert.pem
+ec2_ssl_cert_chain: bbserver-viasat-io-cert-chain.pem
+TARGET_WORKING_DIR: "/home/ut-devops-{{ INSTANCE_ENVIRONMENT }}_cicd"
+

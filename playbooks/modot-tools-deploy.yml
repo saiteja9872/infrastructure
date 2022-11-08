@@ -1,0 +1,34 @@
+# Author: Evan Lee
+# Date: 11/28/2018
+# BBCTERMSW-13429
+
+- hosts: all
+  become: yes
+  vars:
+    WORKSPACE: "{{ lookup('env', 'WORKSPACE')}}"
+    SOURCE_DIR: "{{ WORKSPACE }}/scripts/"
+    TARGET_DIR: /var/tmp/modot_tools
+    LINK_DIR: /usr/sbin/
+
+  tasks:
+    - name: Copy scripts over to the target location.
+      copy:
+        mode: 0700
+        owner: sshproxy
+        dest: "{{ TARGET_DIR }}"
+        src: "{{ SOURCE_DIR }}"
+        remote_src: no
+        force: yes
+
+    - name: Get list of executable files.
+      command: "ls {{ TARGET_DIR }}"
+      register: ls_output
+
+    - name: Symlink scripts to the correct sbin location.
+      file:
+        dest: "{{ LINK_DIR }}/{{ item }}"
+        src: "{{ TARGET_DIR }}/{{ item }}"
+        state: link
+        force: yes
+      with_items:
+        - "{{ ls_output.stdout_lines }}"

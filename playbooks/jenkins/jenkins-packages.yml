@@ -1,0 +1,98 @@
+---
+- hosts: all
+  become: yes
+  pre_tasks:
+    - name: Install Jenkins yum repo.
+      get_url:
+        dest: /etc/yum.repos.d/jenkins.repo
+        url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+
+    - name: Add the Jenkins rpm key to the accepted list.
+      rpm_key:
+        state: present
+        key: https://jenkins-ci.org/redhat/jenkins-ci.org.key
+
+  tasks:
+    - name: Install required packages.
+      package:
+        state: present
+        name: "{{ item }}"
+      with_items:
+        - java-1.8.0-openjdk
+        - jenkins
+        - nginx
+        - python36
+
+    - name: Start the jenkins service.
+      service:
+        state: started
+        name: jenkins
+
+    - name: Give Jenkins some time to start up.
+      wait_for:
+        port: 8080
+        state: started
+        delay: 10
+
+    - name: Make an initial test request to port 8080 to ensure Jenkins is running.
+      uri:
+        url: http://{{ inventory_hostname }}:8080
+        validate_certs: no # Important
+        status_code: 403, 503 # Jenkins may need the Admin password to Unlock or will not authenticate so we'll be FORBIDDEN
+
+    - name: Create the nginx ssl directory.
+      file:
+        state: directory
+        path: /etc/nginx/ssl
+
+    # Source: https://toggen.com.au/blog/it-tips/
+    # using-make-dummy-cert-to-create-a-self-signed-certificate-
+    # to-https-enable-an-nginx-served-website-in-centos-and-other-mouthfuls
+    - name: Run dummy-cert makefile.
+      command: /etc/ssl/certs/make-dummy-cert /etc/nginx/ssl/ssl.crt
+
+    - name: Copy certificate to private key slot as well.
+      copy:
+        dest: /etc/nginx/ssl/ssl.key
+        src: /etc/nginx/ssl/ssl.crt
+        remote_src: yes
+
+    - name: Create templated nginx.conf
+      template:
+        dest: /etc/nginx/nginx.conf
+        src: nginx.conf.j2
+        validate: nginx -t -c %s
+
+  post_tasks:
+    - name: Set SELinux Bool for nginx to be able to connect to itself.
+      seboolean:
+        name: httpd_can_network_connect
+        persistent: yes
+        state: yes
+
+    - name: Start and enable all services.
+      service:
+        enabled: yes
+        state: restarted
+        name: "{{ item }}"
+      with_items:
+        - jenkins
+        - nginx
+
+    - name: Make an initial test request to port 443 to ensure nginx + Jenkins is running.
+      uri:
+        url: https://{{ inventory_hostname }}
+        validate_certs: no # Important
+        status_code: 200, 503 # 503 == Jenkins is starting up properly
+    
+    - name: Install Pip.
+      easy_install:
+        name: pip
+        state: latest
+    
+    - name: Install Python packages needed by Ansible in other Jenkins jobs.
+      pip:
+        name: 
+          - boto
+          - boto3
+          - botocore

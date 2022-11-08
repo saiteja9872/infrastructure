@@ -1,0 +1,32 @@
+- hosts: all
+  tasks:
+  - name: Create templated modoc-consumer.service
+    template:
+      dest: /lib/systemd/system/modoc-consumer.service
+      src: modoc-consumer.service.j2
+ 
+  - name: Put modoc-consumer.py on the EC2.
+    copy:
+      src: "{{ lookup('env', 'WORKSPACE') }}/db/modoc-consumer.py"
+      dest: "/var/tmp/Databus-Consumer/"
+
+  - name: Fix permissions on Databus-Consumer directory.
+    file:
+      path: /var/tmp/Databus-Consumer/
+      mode: 0777
+      state: directory
+      recurse: yes
+
+  - name: Force systemd to reread configs (2.4 and above)
+    systemd:
+      daemon_reload: yes
+
+  - name: Enable service modoc-consumer, and not touch the state
+    service:
+      name: modoc-consumer
+      enabled: yes
+
+  - name: Start and enable all services
+    service:
+      state: started
+      name: modoc-consumer

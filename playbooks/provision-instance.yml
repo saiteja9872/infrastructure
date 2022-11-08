@@ -1,0 +1,104 @@
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    OPERATING_SYSTEM: "{{ lookup('env', 'operating_system') }}"
+    host_short_name: "{{ lookup('env', 'host_short_name') }}"
+    instance_type: "{{ lookup('env', 'instance_type') }}"
+    security_groups: "{{ lookup('env', 'security_groups') }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') }}"
+    instance_size: "{{ lookup('env', 'instance_size') }}"
+    region: "{{ lookup('env', 'region') }}"
+    short_region: "{{ 'euw01' if region == 'eu-west-1' else 'nae01' }}"
+
+  tasks:
+  - name: "Get latest AMI ID for {{ OPERATING_SYSTEM }} OS."
+    ec2_ami_find:
+      aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+      aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+      region: "{{ region }}"
+      is_public: no
+      owner: 174484605794
+      name: "ViaSat-{{ OPERATING_SYSTEM }}-*"
+      sort: creationDate
+      sort_order: descending
+      sort_end: 1
+      state: available
+      no_result_action: fail
+    register: ami_found
+
+  - name: Report detected AMI details.
+    debug:
+      var: ami_found.results[0]
+      verbosity: 1
+
+  - name: "Get subnet ID from name {{ subnet_name }}."
+    ec2_vpc_subnet_facts:
+      aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+      aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+      region: "{{ region }}"
+      filters:
+        "tag:Name": "{{ subnet_name }}"
+    register: subnets_found
+
+  - name: Report detected subnet details.
+    debug:
+      var: subnets_found
+      verbosity: 1
+
+  - fail:
+      msg: "Could not find a subnet ID for subnet with name {{ subnet_name }}!"
+    when: subnets_found.subnets | length == 0
+
+  - name: Set calculated variables.
+    set_fact:
+      subnet_id: "{{ subnets_found.subnets[0].id }}"
+      ami_id: "{{ ami_found.results[0].ami_id }}"
+      environment_string: "{{ subnet_name.split('-')[0] | lower }}"
+
+  - name: Provision EC2 Instance
+    ec2:
+      aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+      aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+      key_name: "ut-devops-{{ environment_string }}-standard"
+      instance_type: "{{ instance_type }}"
+      image: "{{ ami_id }}"
+      wait: yes
+      group: "{{ security_groups }}"
+      count: 1
+      vpc_subnet_id: "{{ subnet_id }}"
+      assign_public_ip: no
+      termination_protection: yes
+      instance_tags:
+        Name: "{{ host_short_name }}"
+        "viasat:v1:emergencyContact": "mmcqueen"
+        "viasat:v1:environment": "{{ environment_string }}"
+      region: "{{ region }}"
+      volumes:
+        - device_name: /dev/sda1
+          volume_type: gp2
+          volume_size: "{{ instance_size }}"
+          encrypted: true
+          delete_on_termination: true
+      user_data: |
+                 #cloud-config
+                 hostname: "{{ host_short_name }}"
+                 fqdn: "{{ host_short_name }}.{{ short_region }}.ut-devops-{{ environment_string }}.viasat.io"
+                 manage_etc_hosts: true
+    register: ec2
+
+  - name: Report new private IP.
+    copy:
+      dest: "{{ lookup('env', 'WORKSPACE') }}/ec2.ip"
+      content: "{{ ec2.instances[0].private_ip }}"
+
+  - name: Block until the instances are "running".
+    ec2:
+      aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+      aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+      wait: yes
+      state: running
+      vpc_subnet_id: "{{ subnet_id }}"
+      assign_public_ip: no
+      region: "{{ region }}"
+      instance_ids: '{{ ec2.instance_ids }}'

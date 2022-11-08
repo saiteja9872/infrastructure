@@ -1,0 +1,59 @@
+{
+	"global-settings": {
+      "global-schema-version": "0.0"
+    },
+	"vno-specific-settings": [
+		{
+            "vno": "exederes",
+			"vno-schema-version": "0.0",
+			"equipment": {
+				"phy-offline-event-thresh": {
+					"days": 7,
+					"thresh-to-equipment-priority": [
+                      {"priority": 1, "threshold": 10},
+                      {"priority": 2, "threshold": 20},
+                      {"priority": 3, "threshold": 30}
+                    ]
+				}
+			},
+			"mispoint": true,
+			"cable": {
+				"ptria-err-event-thresh": {
+					"days": 7,
+					"thresh-to-cable-priority": [
+                      {"priority": 1, "threshold": 10},
+                      {"priority": 2, "threshold": 20},
+                      {"priority": 3, "threshold": 30}
+                    ]
+				}
+			},
+			"npv": true
+		},
+		{
+            "vno": "telbr",
+			"vno-schema-version": "0.0",
+			"equipment": {
+				"phy-offline-event-thresh": {
+					"days": 7,
+					"thresh-to-equipment-priority": [
+                      {"priority": 1, "threshold": 10},
+                      {"priority": 2, "threshold": 20},
+                      {"priority": 3, "threshold": 30}
+                    ]
+				}
+			},
+			"mispoint": true,
+			"cable": {
+				"ptria-err-event-thresh": {
+					"days": 7,
+					"thresh-to-cable-priority": [
+                      {"priority": 1, "threshold": 10},
+                      {"priority": 2, "threshold": 20},
+                      {"priority": 3, "threshold": 30}
+                    ]
+				}
+			},
+			"npv": true
+		}
+	]
+}

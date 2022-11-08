@@ -1,0 +1,189 @@
+# Author: Evan Lee
+# Date: 11/28/2018
+# Ported over from CM-T playbook and customized for ut-devops
+
+- hosts: localhost
+
+  vars:
+    FQDN: "{{ lookup('env', 'fqdn')}}"
+    CERT_ENV: "{{ lookup('env', 'environment')}}"
+    APPLICATION: "{{ lookup('env', 'application')}}"
+    WORKSPACE: "{{ lookup('env', 'WORKSPACE')}}"
+    VICE_USERNAME: "{{ lookup('env', 'VICE_USERNAME')}}"
+    VICE_PASSWORD: "{{ lookup('env', 'VICE_PASSWORD')}}"
+
+  tasks:
+    - debug:
+        var: FQDN
+        verbosity: 1
+
+    - debug:
+        var: APPLICATION
+        verbosity: 1
+
+    - debug:
+        var: VICE_USERNAME
+        verbosity: 1
+
+    - fail:
+        msg: You cannot sign certs for hostnames with length 0.
+      when: FQDN | length == 0
+
+    - name: Ensure pyOpenSSL is installed.
+      become: yes
+      pip:
+        name: pyopenssl
+        state: present
+
+# Replacing this with the below step because the openssl_privatekey
+# module mysteriously cannot locate the pyopenssl or cryptography libraries
+
+#    - name: Create a new private key.
+#      openssl_privatekey:
+#        path: "{{ WORKSPACE }}/cert-{{ FQDN }}-key.pem"
+#        size: 2048
+#        force: yes
+
+    - name: Create a new private key.
+      shell: "openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out {{ WORKSPACE }}/cert-{{ FQDN }}-key.pem"
+
+    - name: Touch blank config file.
+      file:
+        path: "{{ WORKSPACE }}/cert-{{ FQDN }}.conf"
+        state: touch
+
+    - name: Create CSR config file.
+      template:
+        src: "{{ WORKSPACE }}/playbooks/generate_signed_certs/csr_conf.j2"
+        dest: "{{ WORKSPACE }}/cert-{{ FQDN }}.conf"
+
+    # We're on ansible 2.3 - can't use openssl_csr module.
+    - name: Generate a Certificate Signing Request
+      shell: "openssl req -new -out {{ WORKSPACE }}/cert-{{ FQDN }}.csr -key {{ WORKSPACE }}/cert-{{ FQDN }}-key.pem -sha256 -config {{ WORKSPACE }}/cert-{{ FQDN }}.conf"
+
+    - name: "Check if there is already a valid intermediate cert for the application {{ APPLICATION }}."
+      uri:
+        url: https://api.us-or.viasat.io/api/v1/environments/ut-devops-{{ CERT_ENV }}/pki/keys/{{ APPLICATION }}
+        method: GET
+        user: "{{ VICE_USERNAME }}"
+        password: "{{ VICE_PASSWORD }}"
+        force_basic_auth: yes
+        status_code: 200, 404
+        validate_certs: no
+      register: int_keys_response
+
+    - debug:
+        var: int_keys_response
+        verbosity: 1
+
+    - name: "Create an intermediate cert for the application {{ APPLICATION }} if one does not exist."
+      uri:
+        url: https://api.us-or.viasat.io/api/v1/environments/ut-devops-{{ CERT_ENV }}/pki/keys
+        body: "{{ APPLICATION }}"
+        method: POST
+        user: "{{ VICE_USERNAME }}"
+        password: "{{ VICE_PASSWORD }}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      when: int_keys_response.status == 404
+
+    - name: Upload generated CSR and sign it with the application intermediate certificate.
+      uri:
+        url: https://api.us-or.viasat.io/api/v1/environments/ut-devops-{{ CERT_ENV }}/pki/keys/{{ APPLICATION }}?name={{ FQDN }}
+        body: "{{ lookup('file', '{{ WORKSPACE }}/cert-{{ FQDN }}.csr') }}"
+        body_format: raw
+        method: POST
+        user: "{{ VICE_USERNAME }}"
+        password: "{{ VICE_PASSWORD }}"
+        save_content: yes
+        force_basic_auth: yes
+        status_code: 200, 400
+        validate_certs: no
+      register: sign_csr_response
+
+    - debug:
+        var: sign_csr_response
+        verbosity: 1
+
+    - name: Get details on all server signed certs.
+      uri:
+        url: https://api.us-or.viasat.io/api/v1/environments/ut-devops-{{ CERT_ENV }}/pki/keys/{{ APPLICATION }}/certificates
+        method: GET
+        user: "{{ VICE_USERNAME }}"
+        password: "{{ VICE_PASSWORD }}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      register: signed_server_cert_response
+
+    # signed_server_cert_response contains a list of objects;
+    # we need to detect the one that has the "name" matching our FQDN
+    - name: Detect the location of the signed server cert.
+      set_fact:
+        signed_server_cert_location: "{{ item.s3_cert_file }}"
+      with_items: "{{ signed_server_cert_response.json }}"
+      when: item.name == FQDN
+
+    - fail:
+        msg: We could not location the signed server cert!
+      when: signed_server_cert_location is not defined
+
+    - debug:
+        var: signed_server_cert_location
+        verbosity: 1
+
+    - name: Download signed server cert.
+      get_url:
+        url: "{{ signed_server_cert_location }}"
+        dest: "{{ WORKSPACE }}/server-cert.pem"
+        force: yes
+
+    - name: Get details on all application intermediate certs.
+      uri:
+        url: https://api.us-or.viasat.io/api/v1/environments/ut-devops-{{ CERT_ENV }}/pki/keys/
+        method: GET
+        user: "{{ VICE_USERNAME }}"
+        password: "{{ VICE_PASSWORD }}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      register: app_int_cert_response
+
+    # signed_server_cert_response contains a list of objects;
+    # we need to detect the one that has the "name" matching our FQDN
+    - name: Detect the location of the desired application intermediate cert & the associated cert bundle.
+      set_fact:
+        app_int_cert_location: "{{ item.s3_cert_file }}"
+        bundle_file_location: "{{ item.s3_bundle_file }}"
+      with_items: "{{ app_int_cert_response.json }}"
+      when: item.name == APPLICATION
+
+    - debug:
+        var: app_int_cert_location
+        verbosity: 1
+
+    - name: Download application intermediate cert.
+      get_url:
+        url: "{{ app_int_cert_location }}"
+        dest: "{{ WORKSPACE }}/app-cert.pem"
+        force: yes
+
+    - name: Download cert bundle.
+      get_url:
+        url: "{{ bundle_file_location }}"
+        dest: "{{ WORKSPACE }}/viasat-cert.pem"
+        force: yes
+
+    - name: Remove any old files.
+      file:
+        path: "{{ WORKSPACE }}/cert-{{ FQDN }}.pem"
+        state: absent
+
+    - name: Touch a blank final key file.
+      file:
+        path: "{{ WORKSPACE }}/cert-{{ FQDN }}.pem"
+        state: touch
+
+    - name: Concatenate all three files together.
+      shell: "cat {{ WORKSPACE }}/server-cert.pem {{ WORKSPACE }}/app-cert.pem {{ WORKSPACE }}/viasat-cert.pem > {{ WORKSPACE }}/cert-{{ FQDN }}.pem"

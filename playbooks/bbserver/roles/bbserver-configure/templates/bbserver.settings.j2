@@ -1,0 +1,21 @@
+SECRET_KEY = '{{security_key}}'
+
+ALLOWED_HOSTS = ['{{ ansible_eth0.ipv4.address }}', '{{ ansible_host }}', '127.0.0.1', 'localhost', '.ut-devops-{{ INSTANCE_ENVIRONMENT }}.viasat.io']
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'devops_{{ INSTANCE_ENVIRONMENT }}_bbserver_db',
+        'USER': '{{ database_user }}',
+        'PASSWORD': '{{ database_pw }}',
+        'HOST': '{{ database_endpoint }}',
+        'PORT': '5432',
+    }
+}
+
+CELERY_BROKER_URL = 'redis://{{ REDIS_ENDPOINT }}:6379'
+CELERY_RESULT_BACKEND = 'redis://{{ REDIS_ENDPOINT }}:6379'
+
+BBSERVER_UPLOAD_PROXY_URL  = 'https://upload.ut-devops-{{ INSTANCE_ENVIRONMENT }}.viasat.io'
+SNORE_CERT = '/etc/ssl/certs/{{ut_snore_api_cert}}'
+BBSERVER_S3_BUCKET = '{{bbserver_s3_bucket_name}}'

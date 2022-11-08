@@ -1,0 +1,64 @@
+- hosts: localhost
+  connection: local
+  become: yes
+  gather_facts: yes
+  vars:
+    schedule_type: nightly
+
+  environment:
+    AWS_ACCESS_KEY: "{{ lookup('env', 'AWS_ACCESS_KEY') }}"
+    AWS_SECRET_KEY: "{{ lookup('env', 'AWS_SECRET_KEY') }}"
+    AWS_REGION: us-east-1
+
+  tasks:
+    - debug:
+        var: ansible_date_time
+        verbosity: 1
+
+    - debug:
+        msg:
+          - The current day is {{ ansible_date_time.weekday }}.
+          - The current hour in the {{ ansible_date_time.tz }} time zone is {{ ansible_date_time.hour }}.
+
+    - block:
+        - name: If the current day is Saturday or Sunday, do nothing.
+          debug:
+            msg: "We will not perform these operations on the weekend."
+        - meta: end_play
+      when: ansible_date_time.weekday in ['Saturday', 'Sunday']
+
+    - name: Set schedule type based on the day and instance state based on the time of day.
+      set_fact:
+        instance_state: "{{ 'running' if 8 < ansible_date_time.hour|int <= 20 else 'stopped' }}"
+
+    - debug:
+        msg: Based on the day/hour, we have decided to make the instances with tag {{ schedule_type }} be {{ instance_state }}.
+
+    - name: "Make instances with a 'modot:stop-schedule' value of {{ schedule_type }} be {{ instance_state }}."
+      ec2:
+        region: us-east-1
+        instance_tags:
+          modot:stop-schedule: "{{ schedule_type }}"
+        state: "{{ instance_state }}"
+        validate_certs: no
+      register: result
+
+    - name: Gather Name tags from instance IDs.
+      ec2_instance_facts:
+        instance_ids: "{{ result.instance_ids }}"
+      register: instance_facts
+
+    - debug:
+        var: instance_facts
+        verbosity: 2
+
+    - name: Build a list of all the instance names.
+      set_fact:
+        instance_names: "{{ instance_names|default([]) }} + ['{{ item.tags.Name }}']"
+      with_items: "{{ instance_facts.instances }}"
+      no_log: yes
+
+    - debug:
+        msg:
+          - "The following instance Names were made to be {{ instance_state }}: {{ instance_names }}."
+          - "The following instance IDs were made to be {{ instance_state }}: {{ result.instance_ids }}."

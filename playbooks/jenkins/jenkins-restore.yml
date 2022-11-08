@@ -1,0 +1,31 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    target_dir: /var/lib/
+
+  tasks:
+    - name: Copy over the full Jenkins configurations.
+      unarchive:
+        owner: jenkins
+        group: jenkins
+        dest: "{{ target_dir }}"
+        src: "{{ lookup('env', 'WORKSPACE') }}/jenkins.tar.gz"
+
+  post_tasks:
+    - name: Restart the Jenkins service.
+      service:
+        state: restarted
+        name: jenkins
+
+    - name: Give Jenkins some time to start up.
+      wait_for:
+        port: 8080
+        state: started
+        delay: 5
+
+    - name: Make an initial test request to port 443 to ensure nginx + Jenkins is running.
+      uri:
+        url: https://{{ inventory_hostname }}
+        validate_certs: no # Important
+        status_code: 200, 503 # 503 == Jenkins is starting up properly

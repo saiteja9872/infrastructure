@@ -1,0 +1,7 @@
+---
+- name: Deploy boto credentials file.
+  become: yes
+  copy:
+    src: boto_credentials.{{ INSTANCE_ENVIRONMENT }}
+    dest: /etc/boto.cfg
+    mode: a+r

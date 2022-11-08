@@ -1,0 +1,36 @@
+# Author: Evan Lee
+# Date: December 2018
+# BBCTERMSW-13581
+
+- hosts: all
+  become: yes
+  vars:
+    WORKSPACE: "{{ lookup('env', 'WORKSPACE')}}"
+
+  tasks:
+    - name: Install required packages.
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - apache2
+        - python3
+        - python3-pip
+        - python-setuptools
+        - postgresql
+        - postgresql-client
+        - postgresql-client-common
+        - libpq-dev
+
+    - name: Ensure virtualenv is installed.
+      pip:
+        name: virtualenv
+        state: latest
+        executable: pip3
+
+- hosts: all
+  vars:
+     INSTANCE_ENVIRONMENT: "{{ THIS_ENVIRONMENT }}" # Preprod vs prod
+  roles:
+    - {role: apache2-setup, become: yes}
+    - {role: celery-setup, become: yes}

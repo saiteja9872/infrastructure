@@ -1,0 +1,3 @@
+---
+TARGET_WORKING_DIR: "/home/ut-devops-{{ THIS_ENVIRONMENT }}_cicd"
+num_celery_workers: 2

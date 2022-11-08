@@ -1,0 +1,2 @@
+---
+TARGET_WORKING_DIR: /home/ut-devops-{{ INSTANCE_ENVIRONMENT }}_cicd

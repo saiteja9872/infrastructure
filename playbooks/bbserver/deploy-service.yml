@@ -1,0 +1,89 @@
+# Author: Evan Lee
+# Date: December 2018
+# BBCTERMSW-13581
+
+- hosts: all
+  vars:
+    WORKSPACE: "{{ lookup('env', 'WORKSPACE')}}"
+    THIS_ENVIRONMENT: "{{ lookup('env', 'ENVIRONMENT') }}" # Staging vs preprod vs prod
+    INSTANCE_ENVIRONMENT: "{{ lookup('env', 'INSTANCE_ENVIRONMENT') }}" # Preprod vs prod
+    TARGET_WORKING_DIR: "/home/ut-devops-{{ INSTANCE_ENVIRONMENT }}_cicd"
+
+  pre_tasks:
+  - name: Set proper permissions.
+    become: yes
+    file:
+      path: /var/log/modotserver.log
+      mode: a+rw
+      state: touch
+ 
+  tasks:
+  - name: Copy over code.
+    become: yes
+    unarchive:
+      src: "{{ WORKSPACE }}/bbserver.tar.gz"
+      dest: "{{ TARGET_WORKING_DIR }}"
+      owner: root
+      group: root
+
+  - name: Install required packages.
+    become: yes
+    pip:
+      requirements: "{{ TARGET_WORKING_DIR }}/bbserver/modotserver/requirements.txt"
+      virtualenv: "{{ TARGET_WORKING_DIR }}/bbserverproject/bbserverprojenv"
+      state: present
+
+  - name: Set proper permissions.
+    become: yes
+    file:
+      path: "{{ TARGET_WORKING_DIR }}/{{ item }}/"
+      recurse: yes
+      mode: a+rx
+    with_items:
+      - bbserver
+      - bbserverproject
+
+  - include_role:
+      name: bbserver-configure
+
+  - name: Check if AWS Cert for RDS exists. 
+    become: yes
+    stat:
+      path: /etc/ssl/certs/rds-ca-2019-root.pem
+    register: cert_exists
+
+  - name: Download AWS Cert if it does not exist with check (md5).
+    become: yes
+    get_url:
+      url: https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem
+      dest: /etc/ssl/certs/rds-ca-2019-root.pem
+      mode: '0644'
+      checksum: md5:b926e97ca7f423634e50845898194b0d
+    when: cert_exists.stat.exists == False
+   
+  - name: Run Django setup commands.
+    become: yes
+    django_manage:
+      command: "{{ item }}"
+      app_path: "{{ TARGET_WORKING_DIR }}/bbserver/modotserver"
+      virtualenv: "{{ TARGET_WORKING_DIR }}/bbserverproject/bbserverprojenv"
+    with_items:
+      - migrate
+      - collectstatic
+
+  - name: Set proper permissions on the static files.
+    become: yes
+    file:
+      path: "/var/www/bbserver/"
+      recurse: yes
+      mode: a+rx
+
+  - name: Ensure services are enabled and restarted.
+    become: yes
+    service:
+      name: "{{ item }}"
+      state: restarted
+      enabled: yes
+    with_items:
+      - apache2
+      - celery

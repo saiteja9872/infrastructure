@@ -1,0 +1,56 @@
+- hosts: all
+  become: yes
+  vars:
+    WORKSPACE: "{{ lookup('env', 'WORKSPACE')}}"
+
+  tasks:
+    - name: Create test mtool directory.
+      file:
+        path: "{{ TARGET_DIR }}"
+        state: directory
+
+    - name: Copy over mtool code.
+      unarchive:
+        src: "{{ WORKSPACE }}/mtool.tar.gz"
+        dest: "{{ TARGET_DIR }}"
+        mode: 0755
+
+    - name: Open permissions.
+      file:
+        state: directory
+        mode: 0755
+        recurse: yes
+        path: "{{ TARGET_DIR }}"
+
+    - name: Remove old test venv.
+      file:
+        path: "{{ TEST_VENV }}"
+        state: absent
+
+    - name: Create a test virtual environment.
+      command: "python3.6 -m virtualenv -p python3.6 {{ TEST_VENV }}"
+      args:
+        chdir: /var/tmp/
+        creates: "{{ TEST_VENV }}"
+
+    - name: Install requirements in test_venv from PR.
+      pip:
+        requirements: "{{ TARGET_DIR }}/{{ SUB_DIR }}/modem_tool/requirements.txt"
+        virtualenv: "{{ TEST_VENV }}"
+
+    - name: Clone sshca_client.git.
+      git:
+        repo: https://{{ GIT_USR | urlencode }}:{{ GIT_PASS | urlencode }}@git.viasat.com/vice/sshca_client.git
+        dest: /tmp/sshca_client.git
+        accept_hostkey: yes
+        recursive: no
+
+    - name: Install SSHCA client.
+      pip:
+        name: /tmp/sshca_client.git
+        virtualenv: "{{ TEST_VENV }}"
+
+    - name: Remove sshca_client.git.
+      file:
+        path: /tmp/sshca_client.git
+        state: absent

@@ -1,0 +1,14 @@
+- hosts: all
+  vars:
+    INSTANCE_ENVIRONMENT: "{{ lookup('env', 'INSTANCE_ENVIRONMENT') }}" # preprod vs prod
+
+  tasks:
+  - include_role:
+      name: deploy-s3-access-key
+
+  - name: Restart apache2.
+    become: yes
+    service:
+      name: apache2
+      state: restarted
+      enabled: yes

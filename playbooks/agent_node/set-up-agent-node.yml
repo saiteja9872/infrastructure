@@ -1,0 +1,54 @@
+- hosts: all
+  become: yes
+
+  vars:
+    workspace: "{{ lookup('env', 'WORKSPACE')}}"
+
+  tasks:
+
+    - name: Install Jenkins yum repo.
+      get_url:
+        dest: /etc/yum.repos.d/jenkins.repo
+        url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+        validate_certs: false
+
+    - name: Add the Jenkins rpm key to the accepted list.
+      rpm_key:
+        state: present
+        key: https://jenkins-ci.org/redhat/jenkins-ci.org.key
+        validate_certs: false
+
+    - name: Install java.
+      package:
+        state: present
+        name: java
+
+    # Comment out these specific ssh algorithms so that Jenkins is able to ssh to the agent node.
+    - name: Disable "MACs" SSH algorithm in SSHD config
+      replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^MACs'
+        replace: '#MACs'
+    - name: Disable "KexAlgorithms" SSH algorithm in SSHD config.
+      replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^KexAlgorithms'
+        replace: '#KexAlgorithms'
+    - name: Restart the SSHD service so that the above config updates take effect.
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: sshd.service
+
+    # An agent node needs to have a directory dedicated to Jenkins.
+    - name: Create jenkins directory.
+      file:
+        path: "/var/jenkins"
+        state: directory
+        mode: '777'
+
+    - name: Disable host key checking in ansible config so playbooks can run.
+      replace:
+        path: /etc/ansible/ansible.cfg
+        regexp: '^#host_key_checking = False'
+        replace: 'host_key_checking = False'

@@ -1,0 +1,4 @@
+time,ntdMacAddress,realm,satId,serviceAreaId,logicalBeamId,bandId,numberOfAggregates,utAvgFlSinrMeasured,utAvgFlSinrPredicted,utRlChipRateMeasured,utRlChipRatePredicted,flGigaSymbolsUsed,flGigaSymbolsPredicted,flGigaSymbolsWasted,flPacketLossRate,priority,mispointFlag,miscFlag,packetLossFlag,performanceFlag,lastPeakPointSuccessTime
+2021-06-19 23:30:52,11a0bcab392c,abr.res.viasat.com,4,723,11323,A,167,0.4,6.9,40.0,160.0,3005.927,1071.220,1934.707,1.315e-04,4,true,false,false,true,2020-03-28 18:02:59
+2021-06-19 22:28:46,11a0bca97cf8,abr.res.viasat.com,4,701,11301,D,138,-3.0,7.4,5.0,80.0,2232.259,309.639,1922.620,1.662e-05,4,true,false,false,true,2020-08-19 21:36:07
+2021-06-19 23:29:45,11a0bcab2350,abr.res.viasat.com,4,457,11057,C,165,-3.2,2.8,40.0,160.0,2443.922,599.083,1844.839,1.793e-04,4,true,false,false,true,2021-03-01 03:32:47

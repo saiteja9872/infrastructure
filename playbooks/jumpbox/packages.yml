@@ -1,0 +1,426 @@
+- hosts: all
+  vars:
+    instrumentation_browser_file_name: "{{ 'instrumentationbrowser_0.4.8_amd64.deb' if environ == 'preprod' else 'instrumentationbrowser_0.0.2-172_amd64.deb' }}"
+    workspace: "{{ lookup('env', 'WORKSPACE') }}"
+    jumpbox_files: "{{ workspace }}/infra/playbooks/jumpbox/files/"
+    short_env: "{{ 'pre' if environ == 'preprod' else 'prod' }}"
+    modem_key_access_src_dir: "{{ jumpbox_files }}modem_key_access"
+    modem_key_access_compilation_dir: /tmp/modem_key_access_compilation
+    modem_key_access_dst_dir: /var/tmp/modot_tools
+    vault_base_url: https://vault.security.viasat.io:8200/v1
+    modem_key_dir: /home/sshproxy/.ssh
+
+  tasks:
+
+  - name: Update apt cache.
+    apt:
+      update-cache: yes
+    changed_when: 0
+
+  - name: Install jumpbox packages.
+    apt:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+      - autocutsel
+      - emacs
+      - expect
+      - firefox
+      - python-wxgtk3.0
+      - vnc4server
+      - xfce4
+      - xfce4-goodies
+      - screen
+      - at
+      - tmux
+      - jq
+      - snmp
+      - snmp-mibs-downloader
+      - acl
+      - lua5.1
+      - lua-curl-dev
+      - lua-curl
+      - lua-dkjson
+      - lua-sec
+      - lua-socket
+
+  - name: Install nmap.
+    when: environ == "preprod"
+    apt:
+      name: nmap
+      state: present
+
+  - name: Fix issue with screen application.
+    lineinfile:
+      path: /etc/profile.d/fancy_bash_prompt.sh
+      create: yes
+      line: "        source /etc/profile.d/git_prompt.sh"
+      insertafter: '^then'
+
+  - name: Temporarily copy instrumentation_browser deb package.
+    copy:
+      src: "{{ jumpbox_files }}{{ instrumentation_browser_file_name }}"
+      dest: "/tmp/{{ instrumentation_browser_file_name }}"
+      mode: 0644
+
+  - name: Install InstrumentationBrowser.
+    apt:
+      deb: /tmp/{{ instrumentation_browser_file_name }}
+
+  - name: Remove temporary .deb package.
+    file:
+      path: /tmp/{{ instrumentation_browser_file_name }}
+      state: absent
+
+  - name: Update repositories cache and install python-pip and python3-pip.
+    apt:
+      name: "{{ packages }}"
+      state: latest
+      update_cache: yes
+    vars:
+      packages:
+      - python-pip
+      - python3-pip
+
+  - name: Upgrade pip2. Creates pip2.7
+    command: /usr/bin/python2 -m pip install --upgrade pip
+
+  - name: Remove old venv.
+    file:
+      path: "/var/tmp/modot_venv"
+      state: absent
+
+  - name: "Add PPA Repo: {{ PPA_TO_USE }}."
+    apt_repository:
+      repo: "{{ PPA_TO_USE }}"
+      codename: xenial
+
+  - name: "Install {{ PYTHON_VERSION }}."
+    apt:
+      name: "{{ PYTHON_VERSION }}"
+      update_cache: yes
+
+  - name: Install virtualenv and create a modot virtual environment.
+    command: "{{ PYTHON_VERSION }} -m {{ item }}"
+    args:
+      chdir: /var/tmp/
+      creates: /var/tmp/modot_venv
+    with_items:
+    - pip install --upgrade pip
+    - pip install --user virtualenv
+    - pip install --upgrade virtualenv
+    - "virtualenv -p {{ PYTHON_VERSION }} modot_venv"
+
+  - name: Temporarily copy requirements.txt.
+    copy:
+      src: "{{ workspace }}/modot/modem_tool/requirements.txt"
+      dest: "/tmp/requirements.txt"
+      mode: 0644
+
+  - name: Install requirements in modot_venv. Uses pip from virtualenv.
+    pip:
+      requirements: "/tmp/requirements.txt"
+      virtualenv: /var/tmp/modot_venv
+
+  - name: Remove requirements.txt.
+    file:
+      path: /tmp/requirements.txt
+      state: absent
+
+  - name: Clone sshca_client.git.
+    git:
+      repo: https://{{ GIT_USR | urlencode }}:{{ GIT_PASS | urlencode }}@git.viasat.com/vice/sshca_client.git
+      dest: /tmp/sshca_client.git
+      accept_hostkey: yes
+      recursive: no
+
+  - name: Install SSHCA client.
+    pip:
+      name: /tmp/sshca_client.git
+      virtualenv: /var/tmp/modot_venv
+
+  - name: Remove sshca_client.git.
+    file:
+      path: /tmp/sshca_client.git
+      state: absent
+
+  - name: Fix permissions on modot_venv.
+    file:
+      path: /var/tmp/modot_venv
+      mode: 0777
+      state: directory
+      recurse: yes
+
+  - name: Add modot aliases to bash profile directory.
+    copy:
+      dest: /etc/profile.d/
+      src: "{{ jumpbox_files }}modotAliases.sh"
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Add welcome message.
+    copy:
+      dest: /etc/motd
+      src: "{{ jumpbox_files }}welcomeMessage.txt"
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Enable Diffie-Hellman key exchange.
+    lineinfile:
+      path: /etc/ssh/ssh_config
+      create: yes
+      line: "    KexAlgorithms +diffie-hellman-group1-sha1"
+      insertafter: '^Host *'
+
+  - name: Enable databus-cli.
+    copy:
+      src: "{{ jumpbox_files }}databus_linux_amd64"
+      dest: "/usr/local/bin/databus"
+      mode: 0755
+
+  # the automation team needs the sea_svc_ut and ut-devops-prod_release-promoter service accounts
+  # to have access to the preprod jumpbox, but they aren't in the ut-devops-preprod stripe
+  - name: Ensure that sea stripe and ut-devops-prod stripe are included in preprod SSSD config.
+    when: environ == "preprod"
+    lineinfile:
+      path: /etc/sssd/sssd.conf
+      regexp: '^ldap_search_base = '
+      line: 'ldap_search_base = ou=people,dc=viasat,dc=io???ou=services,ou=ut-devops-preprod,ou=environments,dc=viasat,dc=io???ou=services,ou=ut-devops-prod,ou=environments,dc=viasat,dc=io???ou=services,ou=sea,ou=environments,dc=viasat,dc=io??'
+
+  - name: Restart sssd so that the above changes to the sssd config file take effect.
+    become: yes
+    shell: systemctl restart sssd
+
+  - name: Request preprod vault token.
+    uri:
+      method: POST
+      url: "{{ vault_base_url }}/auth/ut-devops-preprod/login/ut-devops-preprod_cicd"
+      body:
+        password: "{{ vault_pass_preprod }}"
+      body_format: json
+    register: vault_token_response_preprod
+
+  - name: Parse preprod vault token from HTTP response.
+    set_fact:
+      vault_token_preprod: "{{ vault_token_response_preprod.json.auth.client_token }}"
+
+  - name: Request prod vault token.
+    uri:
+      method: POST
+      url: "{{ vault_base_url }}/auth/ut-devops-prod/login/ut-devops-prod_cicd"
+      body:
+        password: "{{ vault_pass_prod }}"
+      body_format: json
+    register: vault_token_response_prod
+
+  - name: Parse prod vault token from HTTP response.
+    set_fact:
+      vault_token_prod: "{{ vault_token_response_prod.json.auth.client_token }}"
+
+  - name: Retrieve sshproxy password.
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/{{ environ }}/ut/serviceaccounts/sshproxy"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_preprod if environ == 'preprod' else vault_token_prod }}"
+    register: sshproxy_pass_response
+
+  # the linux user that will own the modem keys and mtool
+  - name: Create SSH proxy user.
+    become: yes
+    user:
+      name: sshproxy
+      password: "{{ sshproxy_pass_response.json.data.password | password_hash('sha512') }}"
+
+  - name: Prevent sshproxy from being shelled to.
+    become: yes
+    replace:
+      path: /etc/passwd
+      regexp: '^(.*)(:/home/sshproxy:/bin/).*'
+      replace: '\1\2false'
+
+  - name: Make sure modem key directory exists.
+    file:
+      path: "{{ modem_key_dir }}"
+      state: directory
+      owner: sshproxy
+
+
+# ------------------- EDIT THIS SECTION IF ADDING A NEW RSA KEY ----------------------|
+
+  - name: Get the old modem key.
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/preprod/ut/viasat/ut/admin/keys/private/ssh/0.0.0.0.0/root"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_preprod }}"
+    register:
+      old_modem_key_response
+
+  - name: Put the old modem key on the jumpbox.
+    copy:
+      content: "{{ old_modem_key_response.json.data.file }}"
+      dest: "{{ modem_key_dir }}/id_rsa.ut"
+      owner: sshproxy
+      mode: 0400
+
+  - name: Get the new test modem key.
+    when: environ == "preprod"
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/preprod/ut/viasat/ut/admin/keys/private/ssh/3.8.0.1.0/root"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_preprod }}"
+    register:
+      test_modem_key_response
+
+  - name: Put the test modem key on the jumpbox.
+    when: environ == "preprod"
+    copy:
+      content: "{{ test_modem_key_response.json.data.key }}"
+      dest: "{{ modem_key_dir }}/sb2ab_test_id_rsa"
+      owner: sshproxy
+      mode: 0400
+
+  - name: Get the first residential modem key.
+    when: environ == "prod"
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/prod/ut/viasat/spock/security/keys/private/ssh/3.7.9.14.0/root"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_prod }}"
+    register:
+      residential_modem_key_response_1
+
+  - name: Put the first residential modem key on the jumpbox.
+    when: environ == "prod"
+    copy:
+      content: "{{ residential_modem_key_response_1.json.data.key }}"
+      dest: "{{ modem_key_dir }}/id_rsa_res_1"
+      owner: sshproxy
+      mode: 0400
+
+  - name: Get the second residential modem key.
+    when: environ == "prod"
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/prod/ut/viasat/ut/admin/keys/private/ssh/3.8.0.2.10/root"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_prod }}"
+    register:
+      residential_modem_key_response_2
+
+  - name: Put the second residential modem key on the jumpbox.
+    when: environ == "prod"
+    copy:
+      content: "{{ residential_modem_key_response_2.json.data.key }}"
+      dest: "{{ modem_key_dir }}/id_rsa_res_2"
+      owner: sshproxy
+      mode: 0400
+
+  - name: Get the M3 modem key.
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/preprod/ut/viasat/m3/user/keys/private/ssh/runtime/mcpuser"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_preprod }}"
+    register:
+      m3_modem_key_response
+
+  - name: Put the M3 modem key on the jumpbox.
+    copy:
+      content: "{{ m3_modem_key_response.json.data.key }}"
+      dest: "{{ modem_key_dir }}/id_rsa.m3"
+      owner: sshproxy
+      mode: 0400
+
+  - name: Get the MT modem key.
+    uri:
+      method: GET
+      url: "{{ vault_base_url }}/secret/viasat/sdp/preprod/ut/viasat/mt/admin/keys/private/ssh/runtime/root"
+      headers:
+        Content-Type: application/json
+        X-Vault-Token: "{{ vault_token_preprod }}"
+    register:
+      mt_modem_key_response
+
+  - name: Put the MT modem key on the jumpbox.
+    copy:
+      content: "{{ mt_modem_key_response.json.data.key }}"
+      dest: "{{ modem_key_dir }}/id_rsa.mt"
+      owner: sshproxy
+      mode: 0400
+
+# ------------------------------------------------------------------------------------|
+
+
+  - name: Copy sources for modem key access scripts into temporary compilation directory.
+    copy:
+      src: "{{ modem_key_access_src_dir }}/"
+      dest: "{{ modem_key_access_compilation_dir }}/"
+
+  - name: Compile modem key access executables.
+    make:
+      chdir: "{{ modem_key_access_compilation_dir }}"
+
+  - name: Make sure modem tools directory exists.
+    file:
+      path: "{{ modem_key_access_dst_dir }}"
+      state: directory
+      owner: sshproxy
+
+  - name: Copy modem key access executables to the target location.
+    copy:
+      mode: 0700
+      owner: sshproxy
+      src: "{{ modem_key_access_compilation_dir }}/{{ item }}"
+      dest: "{{ modem_key_access_dst_dir }}/{{ item }}"
+      remote_src: yes
+      force: yes
+    with_items:
+      - modem_key_ssh
+      - modem_key_scp
+
+  - name: Remove temporary compilation directory for modem key access scripts.
+    file:
+      name: "{{ modem_key_access_compilation_dir }}"
+      state: absent
+
+  - name: Update the sudoers file to enable sea_svc_ut to run nmap as root.
+    when: environ == "preprod"
+    become: yes
+    lineinfile:
+      path: /etc/sudoers.d/sudo_users_nopass
+      state: present
+      regexp: '^sea_svc_ut'
+      line: 'sea_svc_ut ALL=(root) NOPASSWD: /usr/bin/nmap'
+      validate: '/usr/sbin/visudo -cf %s'
+
+  # sshproxy needs to be able to give ownership of log files, files
+  # downloaded from modems,. etc. back to the jumpbox user calling mtool
+  - name: Update the sudoers file to enable sshproxy to change the ownership of files.
+    become: yes
+    lineinfile:
+      path: /etc/sudoers.d/sudo_users_nopass
+      state: present
+      regexp: '^sshproxy'
+      line: 'sshproxy ALL=(root) NOPASSWD: /bin/chown'
+      validate: '/usr/sbin/visudo -cf %s'
+
+  - name: Update the sudoers file to enable other users to run mtool and the modem key access scripts as sshproxy.
+    become: yes
+    lineinfile:
+      path: /etc/sudoers.d/sudo_groups_nopass
+      state: present
+      regexp: "^%modot-jb-{{ short_env }} ALL="
+      line: "%modot-jb-{{ short_env }} ALL=(sshproxy) NOPASSWD:SETENV: /var/tmp/modot_venv/bin/python /var/tmp/modot_tools/modem_tool/modem_tool.py, /var/tmp/modot_venv/bin/python /var/tmp/modot_tools/modem_tool/modem_tool.py *, /var/tmp/modot_tools/modem_key_ssh, /var/tmp/modot_tools/modem_key_scp"
+      validate: '/usr/sbin/visudo -cf %s'

@@ -1,0 +1,16 @@
+- hosts: all
+  become: yes
+  vars:
+    WORKSPACE: "{{ lookup('env', 'WORKSPACE')}}"
+
+  tasks:
+    - name: Remove test directory.
+      file:
+        path: "{{ TARGET_DIR }}"
+        state: absent
+
+    - name: Remove test venv. 
+      file:
+        path: "{{ TEST_VENV }}"
+        state: absent
+

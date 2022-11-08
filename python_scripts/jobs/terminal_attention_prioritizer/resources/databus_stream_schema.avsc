@@ -1,0 +1,88 @@
+{
+    "name": "terminal_attention_priority",
+    "type": "record",
+    "doc": "terminal attention priority",
+    "fields": 
+    [
+        {
+            "name": "mac",
+            "type": "string",
+            "doc":  "the modem's MAC address"
+        },
+        {
+            "name": "vno",
+            "type": "string",
+            "doc":  "the name of the VNO"
+        },
+        {
+            "name": "schema_version",
+            "type": "string",
+            "doc":  "the version of the output message schema"
+        },
+        {
+            "name": "timestamp",
+            "type": "long",
+            "doc":  "the epoch time at which the job that produced this message ran"
+        },
+        {
+            "name": "equipment",
+            "doc":  "info about the priority for attending to the equipment of this modem",
+            "type": {
+                "type": "record",
+                "name": "equipment",
+                "fields": [
+                    {
+                        "name": "equipment_priority",
+                        "type": "long",
+                        "doc":  "equipment attention priority (high numbers mean more urgent need for attention)"
+                    },
+                    {
+                        "name": "recent_phy_offline_event_count",
+                        "type": "long",
+                        "doc":  "the number of recent PHY-related offline events"
+                    }
+                ]
+            }
+        },
+		{
+            "name": "mispoint",
+            "doc":  "info about the priority for correcting this modem's pointing",
+            "type": {
+                "type": "record",
+                "name": "mispoint",
+                "fields": [
+                    {
+                        "name": "mispoint_priority",
+                        "doc":  "mispoint attention priority (high numbers mean more urgent need for attention)",
+                        "type": "int"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "cable",
+            "doc":  "info about the priority for attending to this modem's cable",
+            "type": {
+                "type": "record",
+                "name": "cable",
+                "fields":[
+                    {
+                        "name": "cable_priority",
+                        "doc":  "cable attention priority (high numbers mean more urgent need for attention)",
+                        "type": "long"
+                    },
+                    {
+                        "name": "recent_ptria_err_event_count",
+                        "doc":  "the number of recent PTRIA_ERR events",
+                        "type": "long"
+                    }
+                ]
+            }
+        },
+        {
+                "name": "npv",
+                "doc":  "info about the financial impact of not attending to this modem",
+                "type": "boolean"
+        }
+    ]
+}

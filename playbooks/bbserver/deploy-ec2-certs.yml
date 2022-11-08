@@ -1,0 +1,38 @@
+- hosts: all
+  vars:
+    workspace: "{{ lookup('env', 'WORKSPACE')}}"
+
+  tasks:
+  - name: Install private key.
+    become: yes
+    copy:
+      src: "{{ workspace }}/cert-{{ inventory_hostname }}-key.pem"
+      dest: "/etc/ssl/certs/bbserver-viasat-io-key.pem"
+      owner: root
+      group: root
+      mode: 0440
+
+  - name: Install ELB cert.
+    become: yes
+    copy:
+      src: "{{ workspace }}/server-cert.pem"
+      dest: "/etc/ssl/certs/bbserver-viasat-io-elb-cert.pem"
+      owner: root
+      group: root
+      mode: 0444
+
+  - name: Install cert chain.
+    become: yes
+    copy:
+      src: "{{ workspace }}/cert-{{ inventory_hostname }}.pem"
+      dest: "/etc/ssl/certs/bbserver-viasat-io-cert-chain.pem"
+      owner: root
+      group: root
+      mode: 0444
+
+  - name: Restart apache2.
+    become: yes
+    service:
+      name: apache2
+      state: restarted
+      enabled: yes

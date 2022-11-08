@@ -1,0 +1,20 @@
+[req]
+default_bits        = 2048
+req_extensions      = v3_req
+distinguished_name  = dn
+prompt              = no
+
+[v3_req]
+subjectAltName      = @alt_dns
+
+[alt_dns]
+DNS.1={{ FQDN }}
+
+[dn]
+emailAddress=utdevops@viasat.com
+CN={{ FQDN }}
+OU=MoDOT
+O=ViaSat, Inc.
+L=Carlsbad
+ST=California
+C=US

@@ -1,0 +1,13 @@
+TERMSW-32011 Need simple wrapper tools written in C for calling scp and ssh with some secure syntax checking before calling the actual tool.  These will be called by
+
+Specifically
+
+- need to hardcode the -i parameter and key path being used
+- Ensure nothing in any .ssh/ directory is used as an input
+- Secure syntax that doesn't return a shell or allow anything besides executing the command
+
+To compile the C code wrapper tool, do the following steps:
+
+- make
+- Commit in modem_key_ssh and modem_key_scp after you made code changes.
+

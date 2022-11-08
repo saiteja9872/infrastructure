@@ -1,0 +1,59 @@
+- name: Install required packages.
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - apache2
+    - libapache2-mod-wsgi-py3 # Need for ansible plugin mod_wsgi
+
+- name: Enable ssl module of apache2
+  apache2_module:
+    state: present
+    name: ssl
+
+- name: Install certificates
+  become: yes
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/ssl/certs/{{ item }}"
+    owner: root
+    group: root
+    mode: 0444
+  with_items:
+    - "{{ ec2_ssl_priv_key }}"
+    - "{{ ec2_ssl_cert }}"
+    - "{{ ec2_ssl_cert_chain }}"
+
+- name: Update Apache configuration with virtualhost for bbserver
+  template:
+    src: templates/bbserver.unvaulted.apache.conf.j2
+    dest: /etc/apache2/sites-available/bbserver.conf
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+  notify: restart apache
+
+- name: Symlink bbserver virtualhost to sites-enable
+  file:
+    src: /etc/apache2/sites-available/bbserver.conf
+    dest: /etc/apache2/sites-enabled/bbserver.conf
+    state: link
+  become: yes
+  notify: restart apache
+
+- name: Remove the default Apache configuraration file
+  file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  become: yes
+  notify: restart apache
+
+- name: Create bbserver static file directory
+  become: yes
+  file:
+    path: /var/www/bbserver/static
+    owner: "{{ ansible_user_id }}"
+    group: root
+    state: directory
+

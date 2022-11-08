@@ -1,0 +1,10 @@
+- hosts: all
+  become: yes
+  vars:
+    workspace: "{{ lookup('env', 'WORKSPACE')}}"
+  tasks:
+    - name: Run the Terminal Attention Pioritizer node setup script on the new node.
+      script: "{{ workspace }}/bash_scripts/set_up_tap_node.sh"
+      register: results
+    - debug:
+        var: results.stdout

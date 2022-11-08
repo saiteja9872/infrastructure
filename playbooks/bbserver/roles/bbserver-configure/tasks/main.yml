@@ -1,0 +1,9 @@
+---
+- name: Deploy vault credentials file.
+  become: yes
+  copy:
+    src: vault_credentials.{{ INSTANCE_ENVIRONMENT }}
+    dest: "{{ TARGET_WORKING_DIR }}/bbserver/modotserver/modotserver/.env"
+    owner: celery   # Celery user
+    group: www-data # Apache group
+    mode: 0440

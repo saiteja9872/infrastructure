@@ -1,0 +1,28 @@
+- hosts: all
+  vars:
+    vnc_dotdirectory_location: /home/{{ ansible_user_id }}/.vnc/
+    default_passwd: password # STUB
+
+  tasks:
+  - name: Make sure the .vnc directory exists.
+    file:
+      state: directory
+      path: "{{ vnc_dotdirectory_location }}"
+
+  - name: Copy VNC password script.
+    template:
+      src: "{{ lookup('env', 'WORKSPACE') }}/playbooks/jumpbox/templates/create_password.j2"
+      dest: "{{ vnc_dotdirectory_location }}/pass.sh"
+      mode: 0755
+
+  - name: Run VNC password script.
+    shell: "{{ vnc_dotdirectory_location }}/pass.sh"
+
+  - name: Copy the modified "xstartup" file
+    template:
+      src: "{{ lookup('env', 'WORKSPACE') }}/playbooks/jumpbox/templates/xstartup.j2"
+      dest: "{{ vnc_dotdirectory_location }}/xstartup"
+      mode: 0755
+
+  - name: Ensure vncserver service is started
+    shell: /usr/bin/vncserver -kill :1; /usr/bin/vncserver -depth 24 -geometry 1800x980 :1

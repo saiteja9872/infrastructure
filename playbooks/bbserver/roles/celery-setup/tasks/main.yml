@@ -1,0 +1,63 @@
+- name: Create celery group
+  group:
+    name: celery
+    state: present
+    system: yes
+
+- name: Create celery user
+  user:
+    name: celery
+    group: celery
+    createhome: no
+    system: yes
+    state: present
+
+- name: Copy celery systemd unit file
+  copy:
+    src: celery.service
+    dest: /etc/systemd/system/celery.service
+
+- name: Make sure that /var/run/celery exists
+  file:
+    path: /var/run/celery
+    state: directory
+    mode: 0755
+    group: celery
+    owner: celery
+
+- name: Make sure that /var/log/celery exists
+  file:
+    path: /var/log/celery
+    state: directory
+    mode: 0755
+    group: celery
+    owner: celery
+
+- name: Make sure that /etc/celery exists
+  file:
+    path: /etc/celery
+    state: directory
+    mode: 0666
+
+- name: Copy celeryd.conf file
+  template:
+    src: celeryd.conf.j2
+    dest: /etc/celery/celeryd.conf
+    group: celery
+    owner: celery
+
+- name: Make sure that /etc/tmpfiles.d exists
+  file:
+    path: /etc/tmpfiles.d
+    state: directory
+    mode: 0664
+    group: celery
+    owner: celery
+
+- name: Copy celery.conf file
+  copy:
+    src: celery_reboot.conf
+    dest: /etc/tmpfiles.d/celery.conf
+    group: celery
+    owner: celery
+  become: yes
