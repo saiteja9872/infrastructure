@@ -9,7 +9,7 @@
     <maven.build.timestamp.format>MM.dd.HHmm</maven.build.timestamp.format>
     <python_package>sample_pb</python_package>
     <description>Sample protocol buffer bindings for python</description>
-    <author>ChetanJadhav</author>
+    <author>saitejaa</author>
     <author_email>saiteja9872@gmail.com</author_email>
     <source_url>https://github.com/saiteja9872/infrastructure</source_url>
     <!-- Use a non-existent phase to make sure python tasks only
