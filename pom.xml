@@ -167,7 +167,7 @@ python installed, if they don't need python bindings.
             </goals>
             <configuration>
               <executable>python3</executable>
-              <workingDirectory>${project.build.directory}/generated-sources/python</workingDirectory>
+              <workingDirectory>${project.build.directory}/generated-sources/python/sample_pb</workingDirectory>
               <arguments>
                 <argument>*.py</argument>
                 <argument>sdist</argument>
