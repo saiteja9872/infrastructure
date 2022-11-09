@@ -5,7 +5,7 @@
     <packaging>pom</packaging>
 	 <version>1.0-SNAPSHOT</version>
 	 <name>sample-pb</name>
-  <version>0.0.1-SNAPSHOT</version>
+ 
 
   <properties>
     <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
