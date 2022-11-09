@@ -214,7 +214,7 @@ python installed, if they don't need python bindings.
         <includes>
           <include>*.py</include>
         </includes>
-        <targetPath>${project.build.directory}/generated-sources/python</targetPath>
+        <targetPath>${project.build.directory}/generated-sources/python/{python_package}</targetPath>
         <filtering>true</filtering>
       </resource>
       <resource>
