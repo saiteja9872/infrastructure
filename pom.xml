@@ -13,7 +13,6 @@
 	<sonar.jacoco.reportPath>${project.basedir}/../target/jacoco.exec</sonar.jacoco.reportPath>
 	<sonar.language>java</sonar.language>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-	<project.reporting.outputEncoding>utf-8</project.reporting.outputEncoding>
     <maven.build.timestamp.format>MM.dd.HHmm</maven.build.timestamp.format>
     <python_package>sample_pb</python_package>
     <description>Sample protocol buffer bindings for python</description>
