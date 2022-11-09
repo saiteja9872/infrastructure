@@ -191,7 +191,7 @@ python installed, if they don't need python bindings.
 	<version>0.7.9</version>
 	<configuration>
 	   <destFile>${sonar.jacoco.reportPath}</destFile>
-	   <append>true</append
+		<append>true</append>
 	</configuration>
 	<executions>
 	   <execution>
